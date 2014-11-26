@@ -19,17 +19,18 @@
 #'  model. Each row of the matrix represents tuning parameter values of a specific model.
 #' @param weight_name Character element with the name of the variable used as weight in the
 #'  model training
+#'  
 #' @return S3 object of class \code{uniContValidation}.
 #' 
 #' @family tgmUniCont constructors
 #' @seealso \code{\link{generateTestIndexes}}
 #' @export 
 uniContValidation <- function(resample_indexes, pred, replicate_index, tune_grid, 
-                                 weight_name = NULL){
+                              weight_name = NULL){
   
   object <- list(target_name = mcGet(resample_indexes, "target_name"), 
                  weight_name = weight_name,
-                 prob = pred, 
+                 pred = pred, 
                  datasetResample_tag = mcGet(resample_indexes, "tag"),
                  replicate_index = replicate_index,
                  tune_grid = tune_grid)
