@@ -1,0 +1,6 @@
+S3method(mcGet,uniCont)
+S3method(mcGet,uniContValidation)
+export(computeUniContScore)
+export(evaluateProbClass.uniContValidation)
+export(uniCont)
+export(uniContValidation)
