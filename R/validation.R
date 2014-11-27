@@ -87,3 +87,13 @@ mcGet.uniContValidation <- function(x, attr, i = NULL){
   
 }
 
+#' Summarize results from the validation step
+#' 
+#' @export
+summarizeValidation.uniCont <- function(fitted_model, ...){
+ 
+  class(fitted_model) <- "multiClass"
+  # For now both follow the same logic
+  summarizeValidation(fitted_model, ...)
+  
+}  

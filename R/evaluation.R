@@ -174,3 +174,60 @@ computeNegativeSquareError <- function(prediction, target, weight = NULL){
   }
   
 }
+
+## Transform the function below into a method. We have an equivalent one for multiClass
+
+#' Build calibration plots for a \code{uniCont} object
+#' 
+#' @export
+checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins){
+  
+  if (!(inherits(fitted_model, "uniCont") & 
+          inherits(resample_indexes, "datasetResample"))){
+    stop("'fitted_model' needs to be a 'uniCont' object and 'resample_indexes' needs to be a 'datasetResample'")
+  }
+  
+  if (!require(ggplot2)) stop("Please, install ggplot2.")
+  if (!require(MASS)) stop("Please, install MASS.")
+  if (!require(splines)) stop("Please, install splines.")
+  
+  number_replicates <- mcGet(fitted_model, "number_replicates")
+  
+  joint_pred_probs <- NULL
+  joint_target <- NULL
+  for (i in 1:number_replicates){ 
+    joint_pred_probs <- c(joint_pred_probs, mcGet(fitted_model, "pred", i))
+    joint_target <- c(joint_target, mcGet(resample_indexes, "test_target", i))
+  }
+  
+    cuts <- quantile(x = joint_pred_probs, probs = seq(0, 1, length.out = number_bins + 1))
+    pred_prob_bins <- cut(joint_pred_probs, breaks = unique(cuts))
+    pred_points <- tapply(joint_pred_probs, pred_prob_bins, mean, na.rm=TRUE)
+    
+    bin_sums <- tapply(joint_target, pred_prob_bins, mean, na.rm=TRUE)
+    
+    calibration_objects <- data.frame(prob_pred = pred_points, 
+                                      empirical_prob = bin_sums)  
+        
+    plot_calibration_points <- ggplot(calibration_objects) + 
+      geom_point(aes(x = prob_pred, y = empirical_prob)) + 
+      labs(x = "Predicted", y = "Observed") +
+      geom_abline(intercept = 0, slope = 1)
+    
+    data_to_plot <- data.frame(pred = joint_pred_probs, obs = joint_target)
+    plot_smooth_calibration <- ggplot(data_to_plot, aes(x = pred, y = obs)) + 
+      stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
+      xlim(range(calibration_objects[, "prob_pred"], na.rm = TRUE)) +
+      geom_abline(intercept = 0, slope = 1) +
+      geom_point(data = calibration_objects, mapping = aes(x = prob_pred, empirical_prob)) + 
+      labs(x = "Predicted", y = "Observed")
+  
+  result <- list(calibration_objects = calibration_objects,
+                 target_name = mcGet(resample_indexes, "target_name"),
+                 plot_calibration_points = plot_calibration_points,
+                 plot_smooth_calibration = plot_smooth_calibration)
+  class(result) <- "uniCont_calibration"
+  
+  return(result)
+  
+}
