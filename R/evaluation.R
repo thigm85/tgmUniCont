@@ -163,6 +163,8 @@ computeUniContScore <- function(prediction, target, type, weight = NULL, ...){
 #' @param target Numeric vector with the observed values of the target variables.
 #' @param weight Numeric vector with the weight given to each prediction point. 
 #'  Default is NULL.
+#'  
+#' @export
 computeNegativeSquareError <- function(prediction, target, weight = NULL){
   
   if (is.null(weight)){
