@@ -166,10 +166,10 @@ computeUniContScore <- function(prediction, target, type, weight = NULL, ...){
 computeNegativeSquareError <- function(prediction, target, weight = NULL){
   
   if (is.null(weight)){
-    result <- as.numeric((prediction - target)^2)
+    result <- - as.numeric((prediction - target)^2)
     return(result)
   } else {
-    result <- as.numeric(weight*((prediction - target)^2))
+    result <- - as.numeric(weight*((prediction - target)^2))
     return(result)
   }
   
