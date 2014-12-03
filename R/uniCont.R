@@ -73,7 +73,7 @@ mcGet.uniCont <- function(x, attr, i = NULL){
     
     return(x[["target_name"]])
     
-  } else if (attr == "weight_name"){ # class labels
+  } else if (attr == "weight_name"){ # weight variable name
     
     return(x[["weight_name"]])
     

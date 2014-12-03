@@ -182,7 +182,8 @@ computeNegativeSquareError <- function(prediction, target, weight = NULL){
 #' Build calibration plots for a \code{uniCont} object
 #' 
 #' @export
-checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins){
+checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins, 
+                                     weight_lower_bound = NULL, x_axis = "predicted"){
   
   if (!(inherits(fitted_model, "uniCont") & 
           inherits(resample_indexes, "datasetResample"))){
@@ -202,33 +203,117 @@ checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins
     joint_target <- c(joint_target, mcGet(resample_indexes, "test_target", i))
   }
   
+  if (!is.null(weight_lower_bound)){
+    
+    weight_name <- mcGet(fitted_model, "weight_name")
+    joint_weights <- NULL
+    for (i in 1:number_replicates){ 
+      test_index <- mcGet(resample_indexes, "test", i)
+      weights_i <- as.numeric(mcGet(resample_indexes, "dataset", i)[test_index, weight_name])
+      joint_weights <- c(joint_weights, weights_i)
+    }
+    
+    temp <- data.frame(joint_pred_probs = joint_pred_probs,
+                       joint_target = joint_target,
+                       joint_weights = joint_weights)
+    
+    temp <- subset(temp, joint_weights >= weight_lower_bound)
+    joint_pred_probs <- temp[, "joint_pred_probs"]
+    joint_target <- temp[, "joint_target"]
+    rm(temp)
+  }
+  
+  if (x_axis == "predicted"){
+
     cuts <- quantile(x = joint_pred_probs, probs = seq(0, 1, length.out = number_bins + 1))
     pred_prob_bins <- cut(joint_pred_probs, breaks = unique(cuts))
     pred_points <- tapply(joint_pred_probs, pred_prob_bins, mean, na.rm=TRUE)
     
     bin_sums <- tapply(joint_target, pred_prob_bins, mean, na.rm=TRUE)
     
-    calibration_objects <- data.frame(prob_pred = pred_points, 
-                                      empirical_prob = bin_sums)  
-        
-    plot_calibration_points <- ggplot(calibration_objects) + 
-      geom_point(aes(x = prob_pred, y = empirical_prob)) + 
-      labs(x = "Predicted", y = "Observed") +
-      geom_abline(intercept = 0, slope = 1)
+    calibration_objects <- data.frame(x = pred_points, 
+                                      y = bin_sums)  
+    x_labs <- "Predicted"
+    y_labs <- "Observed"
     
-    data_to_plot <- data.frame(pred = joint_pred_probs, obs = joint_target)
-    plot_smooth_calibration <- ggplot(data_to_plot, aes(x = pred, y = obs)) + 
-      stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
-      xlim(range(calibration_objects[, "prob_pred"], na.rm = TRUE)) +
-      geom_abline(intercept = 0, slope = 1) +
-      geom_point(data = calibration_objects, mapping = aes(x = prob_pred, empirical_prob)) + 
-      labs(x = "Predicted", y = "Observed")
+    data_to_plot <- data.frame(x = joint_pred_probs, y = joint_target)
+    
+  } else if (x_axis == "observed"){
+    
+    cuts <- quantile(x = joint_target, probs = seq(0, 1, length.out = number_bins + 1))
+    target_bins <- cut(joint_target, breaks = unique(cuts))
+    target_points <- tapply(joint_target, target_bins, mean, na.rm=TRUE)
+    
+    bin_sums <- tapply(joint_pred_probs, target_bins, mean, na.rm=TRUE)
+    
+    calibration_objects <- data.frame(x = target_points, 
+                                      y = bin_sums)  
+    x_labs <- "Observed"
+    y_labs <- "Predicted"
+    
+    data_to_plot <- data.frame(x = joint_target, y = joint_pred_probs)
+    
+  }
+
+  plot_calibration_points <- ggplot(calibration_objects) + 
+    geom_point(aes(x = x, y = y)) + 
+    labs(x = x_labs, y = y_labs) +
+    geom_abline(intercept = 0, slope = 1)
+  
+  plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
+    stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
+    xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
+    geom_abline(intercept = 0, slope = 1) +
+    geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
+    labs(x = x_labs, y = y_labs)
   
   result <- list(calibration_objects = calibration_objects,
                  target_name = mcGet(resample_indexes, "target_name"),
                  plot_calibration_points = plot_calibration_points,
                  plot_smooth_calibration = plot_smooth_calibration)
   class(result) <- "uniCont_calibration"
+  
+  return(result)
+  
+}
+
+# re-write checkCalibration_uniCont using the function below.
+
+#' Build calibration plots.
+#' 
+#' @export
+checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs){
+
+  if (!require(ggplot2)) stop("Please, install ggplot2.")
+  if (!require(MASS)) stop("Please, install MASS.")
+  if (!require(splines)) stop("Please, install splines.")
+  
+  cuts <- quantile(x = x, probs = seq(0, 1, length.out = number_bins + 1))
+  x_bins <- cut(x, breaks = unique(cuts))
+  x_points <- tapply(x, x_bins, mean, na.rm=TRUE)
+  
+  bin_sums <- tapply(y, x_bins, mean, na.rm=TRUE)
+  
+  calibration_objects <- data.frame(x = x_points, 
+                                    y = bin_sums)  
+  
+  data_to_plot <- data.frame(x = x, y = y)
+  
+  plot_calibration_points <- ggplot(calibration_objects) + 
+    geom_point(aes(x = x, y = y)) + 
+    labs(x = x_labs, y = y_labs) +
+    geom_abline(intercept = 0, slope = 1)
+  
+  plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
+    stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
+    xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
+    geom_abline(intercept = 0, slope = 1) +
+    geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
+    labs(x = x_labs, y = y_labs)
+  
+  result <- list(calibration_objects = calibration_objects,
+                 plot_calibration_points = plot_calibration_points,
+                 plot_smooth_calibration = plot_smooth_calibration)
   
   return(result)
   
