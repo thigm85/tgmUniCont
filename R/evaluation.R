@@ -148,6 +148,9 @@ computeUniContScore <- function(prediction, target, type, weight = NULL, ...){
   if (type == "negative_square_error"){
     result <- computeNegativeSquareError(prediction = prediction, target = target, weight = weight)
     return(result)
+  } else if (type == "negative_absolute_error"){
+    result <- computeNegativeAbsoluteError(prediction = prediction, target = target, weight = weight)
+    return(result)
   } else {
     stop("Invalid type.\n")
   }
@@ -172,6 +175,29 @@ computeNegativeSquareError <- function(prediction, target, weight = NULL){
     return(result)
   } else {
     result <- - as.numeric(weight*((prediction - target)^2))
+    return(result)
+  }
+  
+}
+
+#' Compute the negative of the absolute error of predictions
+#' 
+#' Compute the negative of the absolute error of predictions. The negative part
+#' is to ensure that the higher the metric is the better.
+#' 
+#' @param prediction Numeric vector with univariate predictions.
+#' @param target Numeric vector with the observed values of the target variables.
+#' @param weight Numeric vector with the weight given to each prediction point. 
+#'  Default is NULL.
+#'  
+#' @export
+computeNegativeAbsoluteError <- function(prediction, target, weight = NULL){
+  
+  if (is.null(weight)){
+    result <- - as.numeric(abs(prediction - target))
+    return(result)
+  } else {
+    result <- - as.numeric(weight*(abs(prediction - target)))
     return(result)
   }
   
