@@ -303,12 +303,30 @@ checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins
   
 }
 
-# re-write checkCalibration_uniCont using the function below.
+# re-write checkCalibration_uniCont using the function checkCalibrationBase.
 
-#' Build calibration plots.
+#' Build calibration plots for univariate continuous variables.
+#' 
+#' @param x Continuous variable to be plotted on the x-axis.
+#' @param y Continuous variable to be plotted on the y-axis.
+#' @param number_bins Number of bins to use for plotting. Each 
+#'  bin will be represented by a dot, which is computed by an 
+#'  average of the points contained in each bin.
+#' @param x_labs String to be use as label for the x-axis.
+#' @param y_labs String to be use as label for the x-axis.
+#' @param weights Numerical vector of the same length as in 
+#' \code{x} and \code{y}. To be used in case each point (x,y) 
+#' have a weight attached to it. Default is NULL for no weights.
+#' 
+#' @return List with three elements: 1) \code{calibration_objects} 
+#'  is a data.frame containing one row for each bin with the x- and y- 
+#'  axis coordinates used in the plotting. 2) \code{plot_calibration_points} is
+#'  a ggplot2 object representing the dot plot of the bin points.
+#'  3) \code{plot_smooth_calibration} is a ggplot2 object which contains
+#'  an smooth estimate of the fit, in addition to the dot plot of the bin points.
 #' 
 #' @export
-checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs){
+checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs, weights = NULL){
 
   if (!require(ggplot2)) stop("Please, install ggplot2.")
   if (!require(MASS)) stop("Please, install MASS.")
@@ -316,26 +334,44 @@ checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs){
   
   cuts <- quantile(x = x, probs = seq(0, 1, length.out = number_bins + 1))
   x_bins <- cut(x, breaks = unique(cuts))
-  x_points <- tapply(x, x_bins, mean, na.rm=TRUE)
-  
-  bin_sums <- tapply(y, x_bins, mean, na.rm=TRUE)
+
+  if (is.null(weights)){
+    x_points <- tapply(x, x_bins, mean, na.rm=TRUE)
+    bin_sums <- tapply(y, x_bins, mean, na.rm=TRUE)
+  } else {
+    sum_weights <- tapply(weights, x_bins, sum, na.rm=TRUE)
+    x_points <- tapply(x*weights, x_bins, sum, na.rm=TRUE)
+    bin_sums <- tapply(y*weights, x_bins, sum, na.rm=TRUE)
+    
+    x_points <- x_points/sum_weights
+    bin_sums <- bin_sums/sum_weights
+  }
   
   calibration_objects <- data.frame(x = x_points, 
                                     y = bin_sums)  
-  
-  data_to_plot <- data.frame(x = x, y = y)
-  
+    
   plot_calibration_points <- ggplot(calibration_objects) + 
     geom_point(aes(x = x, y = y)) + 
     labs(x = x_labs, y = y_labs) +
     geom_abline(intercept = 0, slope = 1)
-  
-  plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
-    stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
-    xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
-    geom_abline(intercept = 0, slope = 1) +
-    geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
-    labs(x = x_labs, y = y_labs)
+
+  if (is.null(weights)){
+    data_to_plot <- data.frame(x = x, y = y)
+    plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
+      stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
+      xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
+      geom_abline(intercept = 0, slope = 1) +
+      geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
+      labs(x = x_labs, y = y_labs)
+  } else {
+    data_to_plot <- data.frame(x = x, y = y, pesos = weights)
+    plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
+      stat_smooth(method = "lm", formula = y ~ ns(x, 3), mapping = aes(weight = pesos)) + 
+      xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
+      geom_abline(intercept = 0, slope = 1) +
+      geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
+      labs(x = x_labs, y = y_labs)
+  }
   
   result <- list(calibration_objects = calibration_objects,
                  plot_calibration_points = plot_calibration_points,
