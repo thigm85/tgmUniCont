@@ -317,6 +317,8 @@ checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins
 #' @param weights Numerical vector of the same length as in 
 #' \code{x} and \code{y}. To be used in case each point (x,y) 
 #' have a weight attached to it. Default is NULL for no weights.
+#' @param smooth_order Degrees of freedom to generate a natural cubic splines. 
+#'  Default to 3. If set to 1 recover a linear trend.
 #' 
 #' @return List with three elements: 1) \code{calibration_objects} 
 #'  is a data.frame containing one row for each bin with the x- and y- 
@@ -326,7 +328,7 @@ checkCalibration_uniCont <- function(fitted_model, resample_indexes, number_bins
 #'  an smooth estimate of the fit, in addition to the dot plot of the bin points.
 #' 
 #' @export
-checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs, weights = NULL){
+checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs, weights = NULL, smooth_order = 3){
 
   if (!require(ggplot2)) stop("Please, install ggplot2.")
   if (!require(MASS)) stop("Please, install MASS.")
@@ -358,7 +360,7 @@ checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs, weights = NU
   if (is.null(weights)){
     data_to_plot <- data.frame(x = x, y = y)
     plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
-      stat_smooth(method = "lm", formula = y ~ ns(x, 3)) + 
+      stat_smooth(method = "lm", formula = y ~ ns(x, smooth_order)) + 
       xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
       geom_abline(intercept = 0, slope = 1) +
       geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
@@ -366,7 +368,7 @@ checkCalibrationBase <- function(x, y, number_bins, x_labs, y_labs, weights = NU
   } else {
     data_to_plot <- data.frame(x = x, y = y, pesos = weights)
     plot_smooth_calibration <- ggplot(data_to_plot, aes(x = x, y = y)) + 
-      stat_smooth(method = "lm", formula = y ~ ns(x, 3), mapping = aes(weight = pesos)) + 
+      stat_smooth(method = "lm", formula = y ~ ns(x, smooth_order), mapping = aes(weight = pesos)) + 
       xlim(range(calibration_objects[, "x"], na.rm = TRUE)) +
       geom_abline(intercept = 0, slope = 1) +
       geom_point(data = calibration_objects, mapping = aes(x = x, y)) + 
